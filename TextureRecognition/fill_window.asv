@@ -1,0 +1,9 @@
+function [src] = fill_window()
+% %             for j=-dim:dim
+% %                 for i=-dim:dim
+% %                     if((y+j >= 1) && (y+j <= h) && (x+i >= 1) && (x+i <= w))
+% %                         mask(y+j,x+i) = 128;
+% %                     end;
+% %                 end;
+% %             end;
+%% EOF

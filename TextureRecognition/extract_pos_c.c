@@ -1,0 +1,286 @@
+#include "mex.h"
+
+/* The gateway function */
+void mexFunction( int nlhs, mxArray *plhs[],
+        int nrhs, const mxArray *prhs[]) {
+    int h, w, hm, wm, ad, ad0, ad1, ad2;
+    int y, x, i, j, k, x0, y0, kp, kf, is_debug, dim, ind;
+    double *src, *psrc;
+    double *f, *pf;
+    double *A;
+    double *X, *pX;
+    double *Y, *pY;
+    double *F1, *pF1;
+    double *F2, *pF2;
+    double *F10, *pF10;
+    double *F20, *pF20;
+    double *m_target, *pm_target;
+    double *e_target1, *pe_target1;
+    double *e_target2, *pe_target2;
+    unsigned char *mask, *pmask;
+    double si;
+    double X0, Y0, Z0;
+    double m, m0, n0, f1, th1, th2, z;
+    const mxArray *f_ptr;
+    const mxArray *A_ptr;
+    const mxArray *m_target_ptr;
+    const mxArray *e_target1_ptr;
+    const mxArray *e_target2_ptr;
+    const mxArray *src_ptr;
+    const mxArray *mask_ptr;
+    const mxArray *is_debug_ptr;
+    const mxArray *X_ptr;
+    const mxArray *Y_ptr;
+    const mxArray *F1_ptr;
+    const mxArray *F2_ptr;
+    const mxArray *F10_ptr;
+    const mxArray *F20_ptr;
+    const mxArray *th_ptr;
+    const mxArray *max1_ptr;
+    const mxArray *max2_ptr;
+    const mxArray *min1_ptr;
+    const mxArray *min2_ptr;
+    const mxArray *dim_ptr;
+    double *dst;
+    double th, max1, max2, min1, min2, ax, bx, ay, by, a0, a1, a2, a3, a4, a5;
+    double *K;
+    
+    src_ptr = mexGetVariablePtr("caller", "src");
+    if (src_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [src].\n");
+    }
+    src = mxGetPr(src_ptr);
+    h = mxGetM(src_ptr);
+    w = mxGetN(src_ptr);
+    
+    mask_ptr = mexGetVariablePtr("caller", "mask");
+    if (mask_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [mask].\n");
+    }
+    mask = (unsigned char *)mxGetData(mask_ptr);
+    hm = mxGetM(mask_ptr);
+    wm = mxGetN(mask_ptr);
+
+    th_ptr = mexGetVariablePtr("caller", "th");
+    if (th_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [th].\n");
+    }
+    th = mxGetPr(th_ptr)[0];
+
+    max1_ptr = mexGetVariablePtr("caller", "max1");
+    if (max1_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [max1].\n");
+    }
+    max1 = mxGetPr(max1_ptr)[0];
+
+    max2_ptr = mexGetVariablePtr("caller", "max2");
+    if (max2_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [max2].\n");
+    }
+    max2 = mxGetPr(max2_ptr)[0];
+
+    min1_ptr = mexGetVariablePtr("caller", "min1");
+    if (min1_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [min1].\n");
+    }
+    min1 = mxGetPr(min1_ptr)[0];
+
+    min2_ptr = mexGetVariablePtr("caller", "min2");
+    if (min2_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [min2].\n");
+    }
+    min2 = mxGetPr(min2_ptr)[0];
+    
+    f_ptr = mexGetVariablePtr("caller", "f");
+    if (f_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [f].\n");
+    }
+    f = mxGetPr(f_ptr);
+    si = mxGetM(f_ptr)*mxGetN(f_ptr);
+    
+    A_ptr = mexGetVariablePtr("caller", "A");
+    if (A_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [A].\n");
+    }
+    A = mxGetPr(A_ptr);
+    
+    X_ptr = mexGetVariablePtr("caller", "X");
+    if (X_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [X].\n");
+    }
+    X = mxGetPr(X_ptr);
+    
+    Y_ptr = mexGetVariablePtr("caller", "Y");
+    if (Y_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [Y].\n");
+    }
+    Y = mxGetPr(Y_ptr);
+    
+    F1_ptr = mexGetVariablePtr("caller", "F1");
+    if (F1_ptr != NULL){
+        F1 = mxGetPr(F1_ptr);
+    }
+    F2_ptr = mexGetVariablePtr("caller", "F2");
+    if (F2_ptr != NULL){
+       F2 = mxGetPr(F2_ptr);
+    }
+    F10_ptr = mexGetVariablePtr("caller", "F10");
+    if (F10_ptr != NULL){
+        F10 = mxGetPr(F10_ptr);
+    }
+    F20_ptr = mexGetVariablePtr("caller", "F20");
+    if (F20_ptr != NULL){
+       F20 = mxGetPr(F20_ptr);
+    }
+    is_debug_ptr = mexGetVariablePtr("caller", "is_debug");
+    if (is_debug_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [is_debug].\n");
+    }
+    is_debug = (int)mxGetPr(is_debug_ptr)[0];
+    
+    m_target_ptr = mexGetVariablePtr("caller", "m_target");
+    if (m_target_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [m_target].\n");
+    }
+    m_target = mxGetPr(m_target_ptr);
+    
+    e_target1_ptr = mexGetVariablePtr("caller", "e_target1");
+    if (e_target1_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [e_target1].\n");
+    }
+    e_target1 = mxGetPr(e_target1_ptr);
+    
+    e_target2_ptr = mexGetVariablePtr("caller", "e_target2");
+    if (e_target2_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [e_target2].\n");
+    }
+    e_target2 = mxGetPr(e_target2_ptr);
+    
+    dim_ptr = mexGetVariablePtr("caller", "dim");
+    if (dim_ptr == NULL){
+        mexErrMsgTxt("Could not get variable [dim].\n");
+    }
+    dim = (int)mxGetPr(dim_ptr)[0];
+    
+    plhs[0] = mxCreateDoubleMatrix(2, 1, mxREAL);
+    K = mxGetPr(plhs[0]);
+            
+    ax = 1/(max1-min1);
+    bx = -ax*min1;
+    ay = 1/(max2-min2);
+    by = -ay*min2;
+            
+    th1 = 0.25;
+    th2 = 0.75;
+    
+    a0 = A[0];
+    a1 = A[1];
+    a2 = A[2];
+    a3 = A[3];
+    a4 = A[4];
+    a5 = A[5];
+            
+    k = 0;
+    kp = 0;
+    kf = 0;
+    ad2 = 0;
+    pX = X;
+    pY = Y;
+    pF1 = F1;
+    pF2 = F2;
+    pF10 = F10;
+    pF20 = F20;
+    for(x0=0;x0<w-wm+1;x0++) {
+        ad1 = ad2;
+        for(y0=0;y0<h-hm+1;y0++) {
+            pf = f;
+            pmask = mask;
+            m = 0.0;
+            for(y=y0;y<y0+hm;y++) {
+                for(x=x0;x<x0+wm;x++) {
+//                    if(*(pmask++) > 0) {
+                    if(mask[(x-x0)*hm+(y-y0)] > 0) {
+                        m0 = 0.0;
+                        n0 = 0.0;
+                        for(j=-dim;j<=dim;j++) {
+                            for(i=-dim;i<=dim;i++) {
+                                if((x+i >= 0) && (x+i < w) && (y+j >= 0) && (y+j < h)) {
+                                    ind = (x+i)*h+(y+j);
+                                    m0 += src[ind];
+                                    n0++;
+                                }
+                            }
+                        }
+                        m0 /= n0;
+                        *(pf++) = m0;
+                        m = m + m0;
+                    };
+                };
+            };
+            m = m/si;
+/*
+            m = 0.0;
+            pf = f;
+            pmask = mask;
+            ad0 = ad1;
+            for(x=0;x<wm;x++) {
+                psrc = &src[ad0];
+                for(y=0;y<hm;y++) {
+                    if(*(pmask++) > 0) {
+                        m += *psrc;
+                        *(pf++) = *psrc;
+                    };
+                    psrc++;
+                }
+                ad0 += h;
+            };
+            m /= si;
+*/
+            
+            X0 = 0.0;
+            Y0 = 0.0;
+            pf = f;
+            pm_target = m_target;
+            pe_target1 = e_target1;
+            pe_target2 = e_target2;
+            for(i=0;i<si;i++) {
+                f1 = *pf - m + 0.5;
+                if(f1 < th1)    *pf = th1;
+                else if(f1 > th2)   *pf = th2;
+                else    *pf = f1;
+                Z0 = *pf - *(pm_target++);
+                X0 += Z0 * *(pe_target1++);
+                Y0 += Z0 * *(pe_target2++);
+                pf++;
+            }
+            X0 = ax*X0+bx;
+            Y0 = ay*Y0+by;
+            //z = (X0+a0)*X0 + (Y0+a1)*Y0 + a2;
+            //z = A[0]*X0*X0+A[1]*X0*Y0+A[2]*Y0*Y0+A[3]*X0+A[4]*Y0+A[5];
+            //z = (A[0]*X0+A[1]*Y0+A[3])*X0+(A[2]*Y0+A[4])*Y0+A[5];
+            z = (a0*X0+a1*Y0+a3)*X0+(a2*Y0+a4)*Y0+a5;
+            if(fabs(z) <= th) {
+                *(pX++) = x0+1;
+                *(pY++) = y0+1;
+                kp++;
+                if(is_debug) {
+                    *(pF10++) = X0;
+                    *(pF20++) = Y0;
+                }
+            }
+            else
+            {
+                if(is_debug) {
+                    *(pF1++) = X0;
+                    *(pF2++) = Y0;
+                    kf++;
+                }
+            }
+            ad1++;
+        }
+        ad2 += h;
+    }
+    K[0] = kp;
+    K[1] = kf;
+}
+//    mexPrintf("%d.\n", is_debug);

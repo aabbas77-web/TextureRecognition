@@ -1,0 +1,20 @@
+function A = circlefit(x,y)
+% x^2+y^2+Ax+By+C=0
+% (x+A/2)^2+(y+B/2)^2=(A^2+B^2)/4-C
+
+
+n = length(x);
+xx=x.*x; yy=y.*y; xy=x.*y; 
+xxx=xx.*x; yyy=yy.*y;
+xyy=xy.*y; xxy=x.*xy;
+
+H = [sum(xx) sum(xy) sum(x);...
+   sum(xy) sum(yy) sum(y);...
+   sum(x) sum(y) n];
+g = [-sum(xxx+xyy) -sum(xxy+yyy) -sum(xx+yy)]';
+X = H\g;
+
+xc = -0.5*X(1);
+yc = -0.5*X(2);
+R = sqrt((X(1)^2+X(2)^2)/4-X(3));
+%% EOF

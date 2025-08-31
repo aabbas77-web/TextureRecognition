@@ -1,0 +1,65 @@
+%% Initialize MATLAB
+close all;
+clear all;
+clc;
+%% Load Settings
+load settings targets targets0 n_targets0 masks masks_dims;
+
+% n_eigenvalues = 8;
+
+% n_eigenvalues = 1*1;
+% n_eigenvalues = 2*2;
+% n_eigenvalues = 3*3;
+% n_eigenvalues = 4*4;
+% n_eigenvalues = 5*5;
+% n_eigenvalues = 6*6;
+% n_eigenvalues = 7*7;
+%% Generate eigentargets
+tic;
+
+mean_target = [];
+eigentargets = [];
+eigen_values = [];
+Coeffs = [];
+for p=1:n_targets0
+    si = masks_dims(p,3);
+    n_rotations = masks_dims(p,4);
+    [mean_target(1:si,p),eigentargets(1:si,:,p),eigen_values(:,p)] = generate_eigentargets(targets(1:si,1:n_rotations,p),n_eigenvalues,0);
+    Coeffs(1:n_rotations,:,p) = apply_eigentargets(targets(1:si,1:n_rotations,p),mean_target(1:si,p),eigentargets(1:si,:,p));
+end;
+
+disp(['elapsed time: [' num2str(toc/60) '] min']);
+save eigentargets_params Coeffs mean_target eigentargets eigen_values;
+%% Show mean target
+for p=1:n_targets0
+    hm = masks_dims(p,1);
+    wm = masks_dims(p,2);
+    mask = masks(1:hm,1:wm,p);
+    dst = recreate_data(mean_target(:,p),mask);
+    figure;
+    imshow(dst);
+    title(['mean target #' num2str(p)]);
+end;
+%% Show some eigentargets
+n_targets = 81;
+n_targets = min(n_targets,size(eigentargets,2));
+s_targets = max(1,round(sqrt(n_targets)));
+if(n_targets > s_targets^2)
+    s_targets = s_targets + 1;
+end;
+n_targets = s_targets^2;
+
+for p=1:n_targets0
+    hm = masks_dims(p,1);
+    wm = masks_dims(p,2);
+    mask = masks(1:hm,1:wm,p);
+    figure;
+    for i=1:min(n_targets,size(eigentargets,2))
+        subplot(s_targets,s_targets,i);
+        dst = recreate_data(eigentargets(:,i,p),mask);
+        dst = adjust_image(dst,0,1);
+        imshow(dst);
+        title([texlabel(['lambda' num2str(i)]) '= ' num2str(eigen_values(i,p))]);
+    end;
+end;
+%% EOF

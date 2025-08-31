@@ -1,0 +1,26 @@
+%% Initialize MATLAB
+close all;
+clear all;
+clc;
+%% Options
+H = 0;
+W = H;
+%% Load source image
+filename = '11.bmp';
+
+src = read_grayscale_image(filename,H,W);
+[h,w] = size(src);
+figure;
+imshow(src);
+%% Generate scales
+root_scale = 1000;
+k = root_scale;
+scales
+for s=1:0.5:2
+    dst = imresize(src,s,'bilinear');
+    imwrite(dst,[num2str(k) '.bmp']);
+    k = k + 1;
+end;
+%% Save settings
+save scales_settings root_scale;
+%% EOF

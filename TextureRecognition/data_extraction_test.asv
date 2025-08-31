@@ -1,0 +1,53 @@
+%% Initialize MATLAB
+close all;
+clear all;
+clc;
+%%
+global eigentargets sMins sMaxs sCounts sCoeffs aCoeffs;
+global target_s target_s2 si f mean_target Emax objects objects_count objs max_th mask I is_learning global_scale n_targets0 n_objects;
+load eigentargets_params Coeffs mean_target eigentargets eigen_values;
+load settings targets target_s si f mask targets0 n_targets0;
+load coefficients sCoeffs sCounts sMaxs sMins aCoeffs Msk sc;
+%%
+H = 0;
+W = H;
+filename = '500.bmp';
+% filename = '600.bmp';
+src = read_grayscale_image(filename,H,W);
+src = im2double(src);
+figure;
+imshow(src);
+%%
+[h0,w0] = size(src);
+s = min(h0,w0);
+tic;
+for sq=1:1:s
+    H0 = floor(h0*target_s/sq);
+    W0 = floor(w0*target_s/sq);
+    dst = imresize(src,[H0 W0],'lanczos3');
+    [hd,wd] = size(dst);
+    for y=1:d:H0-target_s+1
+end;
+delay = toc;
+disp(['elapsed time: [' num2str(delay) '] sec']);
+%% Create new folder
+% path = 'zooms/';
+% if(isdir(path) == 1)
+%     rmdir(path,'s');
+% end;
+% mkdir(path);
+% %% find all expected squares
+% [h0,w0] = size(src);
+% s = min(h0,w0);
+% 
+% tic;
+% for sq=1:1:s
+%     H0 = h0-sq+target_s;
+%     W0 = w0-sq+target_s;
+%     ratio = min(H0/h0,W0/w0);
+%     dst = imresize(src,ratio,'lanczos3');
+%     data = extract_all_data(dst);
+% end;
+% delay = toc;
+% disp(['elapsed time: [' num2str(delay) '] sec']);
+%% EOF

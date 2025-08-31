@@ -1,0 +1,593 @@
+%% Initialize MATLAB
+close all;
+clear all;
+clc;
+set(0,'ShowHiddenHandles','on');
+delete(get(0,'Children'));
+% matlabpool;
+%% Settings
+global eigentargets targets sMins sMaxs sCounts sCoeffs aCoeffs Coeffs eigen_values Emax mean_target As masks masks_dims ths dim;
+global T max_count;
+global coeff n_targets0 cm cn m;
+global is_learning;
+global frame_name;
+global objects objects_count objs n_objects is_debug index path;
+
+load eigentargets_params Coeffs mean_target eigentargets eigen_values;
+load settings targets masks masks_dims targets0 n_targets0 dim;
+load coefficients sCoeffs sCounts sMaxs sMins aCoeffs As ths;
+
+n_objs = 10000;
+objects = zeros(n_objs,8);
+objs = zeros(n_objs,8);
+
+[cm,cn,cp] = size(Coeffs);
+colors = hsv(n_targets0);
+m = round(cm/n_targets0);
+coeff = zeros(cn,1);
+
+if(isempty(dir('features_errors.mat')) == 1)
+    Emax = zeros(n_targets0,2);
+    is_learning = 1;
+else
+    load features_errors Emax;
+    is_learning = 0;
+end;
+if(isempty(dir('scales_settings.mat')) == 1)
+    Smax = 1.0;
+else
+    load scales_settings targets0 scales Smax;
+end;
+
+% titles = {'1 Lira F','1 Lira B','2 Lira F','2 Lira B','5 Lira F','5 Lira B','10 Lira F','10 Lira B','25 Lira F','25 Lira B'};
+titles = {'No turn Left','No return','No Rotate','No body','No direct','No machines'};
+%% Options
+is_debug = 1;
+
+n_objects = 10;
+s = 0;
+
+is_scale_still_image = 1;
+
+is_error_colors = 0;
+
+is_save_frames = 0;
+
+is_profile = 0;
+
+T = 2;
+index_th = T;
+max_count = 5;
+
+% H = 512;
+% H = 256;
+% H = 128;
+% H = 96;
+% H = 64;
+% H = 32;
+H = 0;
+W = H;
+
+is_show_output = 0;
+is_show = 1;
+is_write = 1;
+is_movie = 1;
+is_test_video = 0;
+scale = 100;
+
+is_add_noise = 0;
+
+is_apply_transformations = 0;
+is_apply_scale = 0;
+is_apply_rotation = 0;
+is_apply_gamma = 1;
+
+is_preprocessing = 0;
+is_equalized = 0;
+
+if(is_learning ~= 0)
+    is_show = 0;
+    is_show_output = 1;
+    
+    is_add_noise = 0;
+    
+    is_apply_transformations = 0;
+    is_apply_scale = 0;
+    is_apply_rotation = 0;
+    is_apply_gamma = 1;
+end;
+%%
+if(is_learning ~= 0)
+    n_objects = 1;
+    p = 1;
+    filename = ['p_' num2str(p) '.bmp'];
+    is_test_video = 1;
+    H = 0;
+    W = H;
+else
+    p = 1;
+%     filename = [num2str(abs(targets0(p))) '.bmp'];
+
+%     filename = '../videos/2007_01_28_15_51_46.avi';
+%     filename = '../videos/tank001.avi';
+%     filename = '../videos/tank003.avi';
+%     filename = '../videos/tank007.avi';
+%     filename = '../videos/tank008.avi';
+%     filename = '../videos/MyMovie5.mpg';
+%     filename = '../videos/finLimite1_fin.m1v';
+%     filename = '../videos/paneaux.wmv';
+
+%     filename = '../videos/Prj256.avi';
+%     filename = '../videos/MyMovie1.mpg';
+%     filename = '../videos/MyMovie2.mpg';
+%     filename = '../videos/MyMovie4.mpg';
+%     filename = '../videos/MTN01.mpg';
+%     filename = '../videos/MTN02.mpg';
+%     filename = '../videos/Kasion.avi';
+%     filename = '../videos/test.avi';
+%     filename = '../videos/test01.avi';
+%     filename = '../videos/test02.avi';
+%     filename = '../videos/test03.avi';
+
+%     filename = '../videos/syr01.avi';
+%     filename = '../videos/syr02.avi';
+%     filename = '../videos/syr03.avi';
+  
+%     filename = '../videos/signs01.avi';
+    filename = '../videos/signs02.avi';
+
+%     filename = 'example.avi';
+%     filename = 'example.cam';
+end;
+%% determine input type
+[pathstr,name,ext,versn] = fileparts(filename);
+is_first = 1;
+if((strcmp(ext,'.bmp') == 1) || (strcmp(ext,'.jpg') == 1)) % still image
+    if(is_learning ~= 0)
+%         nFrames = 360;
+%         nFrames = 64;
+%         nFrames = 16;
+        nFrames = 8;
+%         nFrames = 1;
+    else
+%         nFrames = 360;
+%         nFrames = 180;
+%         nFrames = 90;
+%         nFrames = 64;
+%         nFrames = 32;
+%         nFrames = 16;
+        nFrames = 8;
+%         nFrames = 1;
+    end;
+    ds = 0;
+%     ds = (Smax-0.75)/nFrames;
+    da = round(360/nFrames);
+    is_first = 0;
+elseif(strcmp(ext,'.cam') == 1)
+%     adaptorname = 'coreco';
+    adaptorname = 'winvideo';
+    deviceID = 1;
+%     video_format = 'RGB24_160x120';
+    video_format = 'RGB24_648x488';
+    frame_depth = 3;
+%     ratio = 128/160;
+    ratio = 128/648;
+    
+    imaqreset;
+    hwInfo = imaqhwinfo(adaptorname);
+    disp(hwInfo.DeviceInfo(deviceID));
+    nFrames = Inf;
+    vidobj = videoinput(adaptorname,deviceID,video_format);
+    vidobj.FramesPerTrigger = 1;
+    vidobj.TriggerRepeat = Inf;
+    start(vidobj);
+else % videos
+    readerobj = mmreader(filename);
+    disp(readerobj);
+    nFrames = get(readerobj,'numberOfFrames');
+end;
+%% Create new folder
+path = 'frames/';
+if(isdir(path) == 1)
+    rmdir(path,'s');
+end;
+mkdir(path);
+%% Create new folder
+if(is_save_frames ~= 0)
+    save_path = 'saved_frames/';
+    if(isdir(save_path) == 1)
+        rmdir(save_path,'s');
+    end;
+    mkdir(save_path);
+end;
+%% Show some eigentargets
+n_targets = 81;
+n_targets = min(n_targets,size(eigentargets,2));
+s_targets = max(1,round(sqrt(n_targets)));
+if(n_targets > s_targets^2)
+    s_targets = s_targets + 1;
+end;
+n_targets = s_targets^2;
+%%
+w0 = 0;
+h0 = 0;
+mean_delay = 0;
+n_delay = 0;
+if(is_learning ~= 0)
+    index = 1;
+    ds = 0;
+else
+    index = 1;
+%     index = 32;
+%     index = 380;
+%     index = 370;
+end;
+if(is_test_video ~= 0)
+    is_show = 1;
+    RR = zeros(nFrames,2);
+    kk = 1;
+end;
+if(is_movie)
+    % On Windows: 'Indeo3' 'Indeo5' 'Cinepak' 'MSVC' 'None'
+    mov = avifile('movie.avi','compression','None');
+    mov_w = 0;
+    mov_h = 0;
+end;
+while(1)
+    if((strcmp(ext,'.bmp') == 1) || (strcmp(ext,'.jpg') == 1)) % still image
+        if(is_learning == 0)
+%             filename = '500.bmp';
+%             filename = '600.bmp';
+%             filename = '700.bmp';
+%             filename = '800.bmp';
+
+%             filename = '4012.bmp';
+            filename = '4013.bmp';
+
+%             filename = '5007.bmp';
+        end;
+
+        src = read_grayscale_image(filename,H,W);
+        src = im2double(src);
+
+        if(is_scale_still_image ~= 0)
+            rot = src;
+            if(is_learning ~= 0)
+                scale0 = 1;
+            else
+                scale0 = 1+(index-1)*ds;
+                rot = imresize(rot,scale0,'bilinear');
+                [rh,rw] = size(rot);
+                if(H*W <= 0)
+                    W = rw;
+                    H = rh;
+                end;
+                x0 = max(1,round((rh-H+1)/2));
+                y0 = max(1,round((rw-W+1)/2));
+                rot = rot(y0:y0+H-1,x0:x0+W-1);
+            end;
+
+            angle0 = (index-1)*da;
+            rot = imrotate(rot,angle0,'bilinear','crop');
+            
+            disp(['scale: [' num2str(scale0) '] , angle: [' num2str(angle0) ']']);
+
+            [rh,rw] = size(rot);
+            nw = rw+2;
+            nh = rh+2;
+            dst = imresize(src,[nh nw],'lanczos3');
+            src = put_image(dst,rot,round((nw-rw+1)/2),round((nh-rh+1)/2),0,1/255);
+            
+            if(H*W > 0)
+                src = imresize(src,[H W],'lanczos3');
+            end;
+        end;
+    elseif(strcmp(ext,'.cam') == 1)
+        if(vidobj.FramesAvailable <= 0)
+            continue;
+        end;
+        vidobj.FramesAvailable
+%         data = getdata(vidobj,vidobj.FramesAvailable,'double');
+        data = getdata(vidobj,1,'double');
+        flushdata(vidobj);
+        [h2,w2,d2] = size(data);
+        if(w2*h2*d2 <= 0)
+            continue;
+        end;
+        if(d2-frame_depth < 0)
+            continue;
+        end;
+        src = data(:,:,1+d2-frame_depth:1+d2-1);
+        if(frame_depth == 3)
+            src = rgb2gray(src);
+        end;
+        src = im2double(src);
+        src = imresize(src,[ratio*h2 ratio*w2]);
+    else % videos
+        video = read(readerobj,index);
+        src = rgb2gray(video);
+        src = im2double(src);
+        if(W*H > 0)
+            src = imresize(src,[H W],'lanczos3');
+        end;
+    end;
+    if(is_save_frames ~= 0)
+        imwrite(src,[save_path 'frame_' sprintf('%06.0f',index) '.bmp']);
+    end;
+    
+    % add noise
+    if(is_add_noise ~= 0)
+        noise = 0.001;
+        src = imnoise(src,'gaussian',0,noise);
+    end;
+    
+    % Apply transformations
+    if(is_apply_transformations ~= 0)
+        if(is_apply_scale ~= 0)
+            Smax = 2;
+            Smin = 1/Smax;
+            scale = (Smax-Smin)*rand+Smin;
+        else
+            scale = 1;
+        end;
+        
+        if(is_apply_rotation ~= 0)
+            angle = round(360*rand);
+        else
+            angle = 0;
+        end;
+        
+        if(is_apply_gamma ~= 0)
+            Gmin = 0.7;
+            Gmax = 1.5;
+            gamma = (Gmax-Gmin)*rand+Gmin;
+        else
+            gamma = 1;
+        end;
+        
+        src = apply_transforms(src,scale,angle,gamma);
+    end;
+        
+    % find edges
+%     [X, map] = gray2ind(src,16);        
+%     src = im2double(ind2gray(X,map));
+    
+    % Preprocessing
+    if(is_preprocessing ~= 0)
+        src = image_filter(src,2);
+    end;
+    
+    % histogram equalization
+    if(is_equalized ~= 0)
+        src = normalize_image(src);
+    end;
+    
+    % system initialization
+    [h,w] = size(src);
+    
+    % texture recognition process
+    frame_name = ['frame_' sprintf('%02.0f',p) '_' sprintf('%03.0f',index)];
+    
+    tic;
+    
+    if(is_save_frames == 0)
+        if(is_learning ~= 0)
+            find_all_targets_ex(src,s);
+            if(objects_count >= 1)
+                p0 = objects(1,4);
+                a0 = objects(1,5);
+                i0 = objects(1,6);
+                e0 = objects(1,7);
+            else
+                p0 = 0;
+                a0 = 0;
+                i0 = 0;
+                e0 = 0;
+            end;
+            
+            % filter results
+            objects_count = 0;
+            if((p0 >= 1) && (p0 <= n_targets0) && (a0 >= 1) && (a0 <= 360))
+                objects_count = 1;
+                objects(objects_count,1) = objects(1,1);
+                objects(objects_count,2) = objects(1,2);
+                objects(objects_count,3) = objects(1,3);
+                objects(objects_count,4) = p0;
+                objects(objects_count,5) = a0;
+                objects(objects_count,6) = i0;
+                objects(objects_count,7) = e0;
+                objects(objects_count,8) = objects(1,8);
+                D = angle_diff(a0,angle0);
+                if(D <= index_th)
+                    if(i0 > Emax(p0,1))
+                        Emax(p0,1) = i0;
+                    end;
+                    if(e0 > Emax(p0,2))
+                        Emax(p0,2) = e0;
+                    end;
+                end;
+            end;
+        else
+            if(is_profile)
+                profile on;
+                profile clear;
+            end;
+            
+%             spmd
+                find_all_targets_ex(src,s);
+%             end;
+            
+            if(is_profile)
+                profile report;
+                profile off;
+                return;
+            end;
+        end;
+    end;
+    
+    delay = toc;
+    disp(['elapsed time: [' num2str(delay) '] sec']);
+    if(is_first == 0)
+        mean_delay = mean_delay + delay;
+        n_delay = n_delay + 1;
+    end;
+    
+    if(is_learning ~= 0)
+        if(is_show_output ~= 0)
+            disp(['frame [' num2str(index) ' / ' num2str(nFrames) ']' ' <' num2str(index*da) '>']);
+            disp(['personID: ' num2str(p0) ' , angle: ' num2str(a0) ' , eigenvalues count: ' num2str(i0)]);
+        end;
+    end;
+    
+    % show results
+    if(is_show ~= 0)
+        if((w ~= w0) || (h ~= h0))
+            delete(gcf);
+            figure;
+            set(gcf,'KeyPressFcn',@OnKeyPress);
+            set(gcf,'CloseRequestFcn','setappdata(gcbf,''canceling'',1)');
+            set(gcf,'DoubleBuffer','on');
+            set(gcf,'backingStore','off');
+            setappdata(gcf,'canceling',0);
+            w0 = w;
+            h0 = h;
+        end;
+        cla;
+        if(is_movie)
+            imshow(src,'Border','tight','InitialMagnification',scale);
+        else
+            imshow(src,'Border','loose');
+        end;
+        hold on;
+        for i=1:objects_count
+            x0 = objects(i,1);
+            y0 = objects(i,2);
+            p0 = objects(i,4);
+            a0 = objects(i,5);
+            i0 = objects(i,6);
+            e0 = objects(i,7);
+            level0 = 1;
+            scale0 = objects(i,8);
+            scale1 = objects(i,3);
+            
+            hm = masks_dims(p0,1);
+            wm = masks_dims(p0,2);
+            
+%             x00 = x0-scales(p0,2);
+%             y00 = y0-scales(p0,3);
+%             h00 = scales(p0,4);
+%             w00 = scales(p0,5);
+
+%             if(e0 > 1*Emax(p0,2))
+%                 continue;
+%             end;
+            
+            % draw line direction
+            x1 = scale0*x0+(scale0*wm)/2;
+            y1 = scale0*y0+(scale0*hm)/2;
+            dx = (scale0*wm)/2;
+            dy = (scale0*hm)/2;
+            a = -deg2rad(90+a0);
+            x2 = x1 + dx*cos(a);
+            y2 = y1 + dy*sin(a);
+            
+            % draw target frame
+            Lw = 2.0;
+            if(is_error_colors ~= 0)
+                rectangle('Position',[scale0*x0,scale0*y0,scale0*wm,scale0*hm],'EdgeColor','r','Curvature',[1,1],'LineWidth',Lw);
+                line([x1 x2],[y1 y2],'Marker','o','Color','r','LineWidth',Lw);
+                plot(x1,y1,'oy','LineWidth',Lw);
+                
+                % write target information
+                text(scale0*(x0+wm/8),scale0*(y0+hm/2),{['p: ' num2str(p0)],['s: ' sprintf('%0.02f',scale1)],['a: ' sprintf('%0.02f',a0)]},'Color','g','FontSize',10,'FontWeight','bold');
+            else
+                rectangle('Position',[scale0*x0,scale0*y0,scale0*wm,scale0*hm],'EdgeColor',colors(p0,:),'Curvature',[1,1],'LineWidth',Lw);
+                line([x1 x2],[y1 y2],'Marker','o','Color',colors(p0,:),'LineWidth',Lw);
+                plot(x1,y1,'oy','LineWidth',Lw);
+                text(scale0*(x0+wm/8),scale0*(y0+hm/2),titles{p0},'Color','g','FontSize',10,'FontWeight','bold');
+            end;
+        end;
+        title(['frame [' num2str(index) ' / ' num2str(nFrames) ']']);
+        drawnow;
+    end;
+    if(is_test_video ~= 0)
+        if(objects(1,5) == 360)
+            RR(kk,1) = 0;
+        else
+            RR(kk,1) = objects(1,5);
+        end;
+        RR(kk,2) = objects(1,6);
+        kk = kk + 1;
+    end;
+    
+    if(is_show ~= 0)
+        % write results to HD
+        if(is_write ~= 0)
+            saveas(gcf,[path frame_name],'emf');
+        end;
+        if(is_movie)
+            if(mov_w == 0)
+                mov_w = w;
+                mov_h = h;
+            end;
+            F = getframe(gcf);
+            tmp = imresize(F.cdata,[mov_h mov_w],'bilinear');
+            mov = addframe(mov,tmp);
+%             mov = addframe(mov,getframe(gcf));
+        end;
+    end;
+    is_first = 0;
+    if(getappdata(gcf,'canceling'))
+        break;
+    end;
+    index = index + 1;
+    if(index < 1)
+        break;
+    end;
+    if(index > nFrames)
+        if(is_learning ~= 0)
+            if(n_targets0 <= 1)
+                break;
+            else
+                index = 1;
+                p = p + 1;
+                if(p > n_targets0)
+                    break
+                end;
+                if(is_learning ~= 0)
+                    filename = ['p_' num2str(p) '.bmp'];
+                else
+                    filename = [num2str(abs(targets0(p))) '.bmp'];
+                end;
+            end;
+        else
+            break;
+        end;
+    end;
+end;
+if(strcmp(ext,'.cam') == 1)
+    stop(vidobj);
+    delete(vidobj);
+    clear(vidobj);
+end;
+if(is_movie)
+    mov = close(mov);
+end;
+delete(gcf);
+
+if(n_delay ~= 0)
+    mean_delay = mean_delay/n_delay;
+    disp(['mean time: [' num2str(mean_delay) '] sec , frame rate = [' num2str(1/mean_delay) '] fps']);
+end;
+if(is_learning ~= 0)
+    save features_errors Emax;
+end;
+if(is_test_video ~= 0)
+    figure;
+    stem(RR(:,1),'Marker','none');
+    
+    figure;
+    bar(RR(:,2));
+end;
+% matlabpool close;
+%% EOF

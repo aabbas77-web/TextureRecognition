@@ -1,0 +1,9 @@
+%% Initialize MATLAB
+close all;
+clear all;
+clc;
+%%
+start_frame = 0;
+end_frame = 801;
+for index=start_frame:
+%% EOF

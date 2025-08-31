@@ -1,0 +1,122 @@
+%% Initialize MATLAB
+close all;
+clear all;
+clc;
+%% Load settings
+load eigentargets_params Coeffs mean_target eigentargets eigen_values;
+load settings targets targets0 n_targets0 masks masks_dims;
+
+[cm,cn,cp] = size(Coeffs);
+%% Settings
+n_targets = 81;
+n_targets = min(n_targets,size(eigentargets,2));
+s_targets = max(1,round(sqrt(n_targets)));
+if(n_targets > s_targets^2)
+    s_targets = s_targets + 1;
+end;
+n_targets = s_targets^2;
+%% Plot coefficients (on the same axis)
+% epsilon = 1E+1;
+% epsilon = 1E-0;
+% epsilon = 1E-1;
+% epsilon = 1E-2;
+epsilon = 1E-3;
+% epsilon = 1E-4;
+% epsilon = 1E-5;
+% epsilon = 1E-6;
+
+sCoeffs = [];
+sCounts = [];
+sMaxs = [];
+sMins = [];
+for p=1:n_targets0
+    n_rotations = masks_dims(p,4);
+    m = n_rotations;
+    a = (360-1)/(m-1);
+    b = 1-a;
+    x = 1:m;
+    x = (a*x+b)';
+    
+    figure;
+    polyline = [];
+    for i=1:min(n_targets,cn)
+        subplot(s_targets,s_targets,i);
+        hold on;
+        
+        y = Coeffs(1:n_rotations,i,p)';
+        % smooth data
+        y = smooth(x,y,0.1,'rloess');
+        plot(x,y,'b');
+        
+        polyline(:,1) = x;
+        polyline(:,2) = y;
+        n = size(polyline,1);
+        best_polyline = find_best_polyline(polyline,1,n,epsilon);
+        
+        M = size(best_polyline,1);
+        sCoeffs(i,1:M,1,p) = best_polyline(:,1);
+        sCoeffs(i,1:M,2,p) = best_polyline(:,2);
+        sCounts(i,p) = M;
+        sMaxs(i,p) = max(best_polyline(:,2));
+        sMins(i,p) = min(best_polyline(:,2));
+        
+        plot(best_polyline(:,1),best_polyline(:,2),'r');
+        
+        title([texlabel(['lambda' num2str(i)]) '= ' num2str(eigen_values(i,p))]);
+    end;
+end;
+
+for p=1:n_targets0
+    n_rotations = masks_dims(p,4);
+    figure;
+    for i=1:2:min(n_targets,cn)-1
+        subplot(s_targets,s_targets,round(i/2));
+        plot(Coeffs(1:n_rotations,i,p),Coeffs(1:n_rotations,i+1,p));
+    end;
+end;
+%% find angles coefficients
+aCoeffs = [];
+for p=1:n_targets0
+    for a=1:360
+        C = [];
+        for j=1:cn
+            M = sCounts(j,p);
+            x = sCoeffs(j,1:M,1,p);
+            y = sCoeffs(j,1:M,2,p);
+            C(j,1) = polyline_value(x,y,a);
+        end;
+        aCoeffs(:,a,p) = C;
+    end;
+end;
+%% estimate ellipse
+As = [];
+ths = [];
+for p=1:n_targets0
+    n_rotations = masks_dims(p,4);
+    x = Coeffs(1:n_rotations,1,p);
+    y = Coeffs(1:n_rotations,2,p);
+    min1 = min(x);
+    min2 = min(y);
+    max1 = max(x);
+    max2 = max(y);
+    x = (x-min1)/(max1-min1);
+    y = (y-min2)/(max2-min2);
+    A = fit_ellipse(x,y);
+    As(:,p) = A;
+    ths(p,1) = 4*mean(abs(myfun(x,y,A,0)));
+    figure;
+    hold on;
+    plot(x,y,'or');
+    interval = [-0.5,1.5];
+    ezplot(@(x,y)myfun(x,y,A,0),interval);
+    a0 = A(6);
+    A(6) = a0-ths(p,1);
+    ezplot(@(x,y)myfun(x,y,A,0),interval);
+    A(6) = a0+ths(p,1);
+    ezplot(@(x,y)myfun(x,y,A,0),interval);
+    A
+end;
+%% save settings
+delete('features_errors.mat');
+save coefficients sCoeffs sCounts sMaxs sMins aCoeffs As ths;
+%% EOF
