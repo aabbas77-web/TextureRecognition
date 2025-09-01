@@ -9,4 +9,5 @@
 
 [![Recognition of a predefined texture within an image](https://github.com/aabbas77-web/TextureRecognition/releases/download/FirstRelease/TextureRecognitionVideo.png)](https://www.youtube.com/watch?v=0CR_nIFIA0U)
 
+[![Recognition of a predefined texture within an image](https://github.com/aabbas77-web/TextureRecognition/releases/download/FirstRelease/TextureRecognitionVideo2.png)](https://www.youtube.com/watch?v=wTZLeJyW-yQ)
 
